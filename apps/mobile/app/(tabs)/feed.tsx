@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
-import { useEffect, useState, StyleSheet } from 'react';
-import { Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, StyleSheet } from 'react-native';
 import * as Application from 'expo-application';
 import { ThemedView } from '@components/themed';
 import { useHaptics } from '@hooks/useHaptics';
@@ -8,17 +8,6 @@ import { useTheme } from '@providers/ThemeProvider';
 import { useToast } from '@providers/ToastProvider';
 import { useWalletStore } from '@store/useStore';
 import { OptimizedHuntFeed } from '@components/OptimizedHuntFeed';
-import "react-native-get-random-values";
-
-import { OptimizedHuntFeed } from "@components/OptimizedHuntFeed";
-import { ThemedView } from "@components/themed";
-import { useHaptics } from "@hooks/useHaptics";
-import { useTheme } from "@providers/ThemeProvider";
-import { useToast } from "@providers/ToastProvider";
-import { useWalletStore } from "@store/useStore";
-import * as Application from "expo-application";
-import { StyleSheet,useEffect, useState } from "react";
-import { Platform } from "react-native";
 
 export default function FeedScreen() {
   const { colors } = useTheme();

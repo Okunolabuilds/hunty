@@ -11,13 +11,9 @@ import { useTheme } from '@providers/ThemeProvider';
 import { useToast } from '@providers/ToastProvider';
 import { getHuntClues } from '@store/huntStore';
 import { usePlayerStore, useWalletStore } from '@store/useStore';
-import type { Clue } from '@hunty/types';
-import { verifyQrAgainstClue } from '@lib/qrCodeDecryptor';
-import { matchesClueAnswer } from '@lib/clueAnswerVerification';
-import { useToast } from '@providers/ToastProvider';
-import { ClueMarkdownRenderer } from '@components/ClueMarkdownRenderer';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 
 import { verifyClueGeofence } from '@/lib/locationGate';

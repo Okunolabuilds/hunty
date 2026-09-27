@@ -11,7 +11,7 @@ module.exports = {
     '!**/*.config.{js,ts}',
     '!coverage/**',
     '!**/.expo/**',
-    '!path-alias.js'
+    '!path-alias.js',
   ],
   setupFiles: ['<rootDir>/__mocks__/jestSetup.js'],
 
@@ -37,6 +37,7 @@ module.exports = {
     '^@lib/(.*)$': '<rootDir>/../web/lib/$1',
     '^@utils/(.*)$': '<rootDir>/utils/$1',
     '^@components/(.*)$': '<rootDir>/components/$1',
+    '^@app/(.*)$': '<rootDir>/app/$1',
     '^@/(.*)$': '<rootDir>/$1',
     // Mock assets
     '\\.(png|jpg|jpeg|gif|svg|ico|webp|ttf|otf)$': '<rootDir>/__mocks__/fileMock.js',
