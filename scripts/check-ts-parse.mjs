@@ -36,7 +36,8 @@ function collectSourceFiles(dir) {
       results.push(path.join(dir, entry.name));
     }
   }
-  return results;
+
+  return errors;
 }
 
 function scriptKind(file) {

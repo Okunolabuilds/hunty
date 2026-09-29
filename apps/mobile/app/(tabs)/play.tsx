@@ -4,8 +4,10 @@ import { BackgroundLocationControl } from '@components/BackgroundLocationControl
 import { EmptyState } from '@components/EmptyState';
 import { OfflineBanner } from '@components/OfflineBanner';
 import { QRScanner } from '@components/QRScanner';
+import { QueuedAnswersBanner } from '@components/QueuedAnswersBanner';
 import { ThemedButton, ThemedCustomText, ThemedView } from '@components/themed';
 import { useHaptics } from '@hooks/useHaptics';
+import { useQueuedAnswerCount } from '@hooks/useQueuedAnswerCount';
 import { matchesClueAnswer } from '@lib/clueAnswerVerification';
 import { verifyQrAgainstClue } from '@lib/qrCodeDecryptor';
 import type { Clue } from '@lib/types';
@@ -30,6 +32,7 @@ export default function PlayScreen() {
     });
     return () => unsubscribe();
   }, []);
+  const queuedAnswerCount = useQueuedAnswerCount();
 
   const router = useRouter();
   const { colors } = useTheme();
@@ -198,6 +201,12 @@ export default function PlayScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {queuedAnswerCount > 0 ? (
+          <QueuedAnswersBanner count={queuedAnswerCount} isOnline={isOnline} />
+        ) : !isOnline ? (
+          <OfflineBanner />
+        ) : null}
+
         <View
           style={[
             styles.heroCard,
@@ -207,7 +216,9 @@ export default function PlayScreen() {
           <ThemedCustomText variant="h2" color="primary" weight="800">
             Active Hunt Session
           </ThemedCustomText>
-          <ThemedCustomText variant="body">{progressLabel}</ThemedCustomText>
+          <ThemedCustomText variant="body" testID="play-progress-label">
+            {progressLabel}
+          </ThemedCustomText>
         </View>
 
         <View
@@ -292,7 +303,6 @@ export default function PlayScreen() {
 
         {!allSolved && activeClue ? (
           <>
-            <OfflineBanner />
             <View
               style={[
                 styles.answerPanel,
@@ -320,7 +330,7 @@ export default function PlayScreen() {
                 autoCorrect={false}
               />
               {error ? (
-                <ThemedCustomText variant="caption" color="error">
+                <ThemedCustomText variant="caption" color="error" testID="answer-error">
                   {error}
                 </ThemedCustomText>
               ) : null}
@@ -331,6 +341,7 @@ export default function PlayScreen() {
                 onPress={handleSubmit}
               />
               <ThemedButton
+                testID="scan-qr-button"
                 text="Scan QR checkpoint"
                 variant="secondary"
                 fullWidth

@@ -4,6 +4,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import env from '@config/env';
+import { ANSWER_QUEUE_KEY, notifyAnswerQueueChanged } from '@store/answerQueue';
 import * as SecureStore from 'expo-secure-store';
 import type { Clue, HuntStatus, StoredHunt } from '@hunty/types';
 import { scheduleHuntExpiryNotification } from '@utils/huntNotifications';
@@ -229,7 +230,7 @@ export async function queueClueAnswer(
   wallet: string,
 ): Promise<void> {
   try {
-    const existing = await AsyncStorage.getItem('hunty_clue_queue');
+    const existing = await AsyncStorage.getItem(ANSWER_QUEUE_KEY);
     const queue = existing
       ? (JSON.parse(existing) as Array<{
           huntId: number;
@@ -239,7 +240,8 @@ export async function queueClueAnswer(
         }>)
       : [];
     queue.push({ huntId, clueId, answer, wallet });
-    await AsyncStorage.setItem('hunty_clue_queue', JSON.stringify(queue));
+    await AsyncStorage.setItem(ANSWER_QUEUE_KEY, JSON.stringify(queue));
+    notifyAnswerQueueChanged(queue.length);
   } catch {
     // ignore errors
   }
@@ -250,7 +252,7 @@ export async function getQueuedAnswers(): Promise<
   Array<{ huntId: number; clueId: number; answer: string; wallet: string }>
 > {
   try {
-    const data = await AsyncStorage.getItem('hunty_clue_queue');
+    const data = await AsyncStorage.getItem(ANSWER_QUEUE_KEY);
     return data ? JSON.parse(data) : [];
   } catch {
     return [];
@@ -325,10 +327,11 @@ export async function processQueuedAnswers(): Promise<void> {
   }
 
   if (failed.length > 0) {
-    await AsyncStorage.setItem('hunty_clue_queue', JSON.stringify(failed));
+    await AsyncStorage.setItem(ANSWER_QUEUE_KEY, JSON.stringify(failed));
   } else {
-    await AsyncStorage.removeItem('hunty_clue_queue');
+    await AsyncStorage.removeItem(ANSWER_QUEUE_KEY);
   }
+  notifyAnswerQueueChanged(failed.length);
 }
 
 // Public function to submit answer when online
