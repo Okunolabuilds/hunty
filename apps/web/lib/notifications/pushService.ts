@@ -8,15 +8,17 @@
  */
 
 import webpush, { type PushSubscription as WebPushSubscription } from "web-push"
+
 import { logger } from "@/lib/logger"
+
 import { getStoredNotificationPreferences } from "./notificationPreferencesStore"
-import type { PushEventType, PushPayload, WebPushSubscriptionRecord } from "./types"
-import { PUSH_EVENT_PREFERENCE_KEY } from "./types"
 import {
-  getSubscriptionsForWallet,
   getSubscriptionsByWallets,
+  getSubscriptionsForWallet,
   removeSubscription,
 } from "./subscriptionStore"
+import type { PushEventType, PushPayload, WebPushSubscriptionRecord } from "./types"
+import { PUSH_EVENT_PREFERENCE_KEY } from "./types"
 
 // ─── VAPID Configuration ──────────────────────────────────────────────────────
 
@@ -225,10 +227,10 @@ async function sendToRecords(
           record.subscription as WebPushSubscription,
           jsonPayload
         )
-        .catch((err: { statusCode?: number }) => {
+        .catch(async (err: { statusCode?: number }) => {
           // 410 Gone / 404 Not Found → subscription is expired, remove it
           if (err?.statusCode === 410 || err?.statusCode === 404) {
-            removeSubscription(record.subscription.endpoint as string)
+            await removeSubscription(record.subscription.endpoint as string)
             logger.info(
               "[pushService] Removed stale subscription:",
               record.walletAddress

@@ -9,9 +9,9 @@ import { NextResponse } from "next/server";
 
 import { ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
-import { getIP, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { getPublicHuntByIdOptimized } from "@/lib/db/queryOptimizer";
 import { notifyFollowersOfNewHunt } from "@/lib/follows";
+import { getIP, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -32,7 +32,7 @@ export const POST = withErrorHandling<Context>(async (req: Request, { params }) 
     return NextResponse.json({ notified: 0, reason: "no_creator" });
   }
 
-  const notifications = notifyFollowersOfNewHunt(creator, { id: hunt.id, title: hunt.title });
+  const notifications = await notifyFollowersOfNewHunt(creator, { id: hunt.id, title: hunt.title });
 
   return NextResponse.json({ notified: notifications.length });
 });

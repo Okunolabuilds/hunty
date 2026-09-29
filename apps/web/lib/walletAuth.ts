@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
 import { Keypair } from "@stellar/stellar-sdk";
+import { NextRequest } from "next/server";
 
 export interface VerifiedCaller {
   authenticated: boolean;

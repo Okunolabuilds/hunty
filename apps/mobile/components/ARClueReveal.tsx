@@ -25,6 +25,7 @@ interface ARClueRevealProps {
   onClose: () => void;
   onReveal: () => void;
   clueText: string;
+  targetLocation?: { latitude: number; longitude: number };
 }
 
 const { width, height } = Dimensions.get('window');
@@ -161,7 +162,7 @@ export const ARClueReveal: React.FC<ARClueRevealProps> = ({
       <CameraView
         ref={cameraRef}
         style={[styles.camera, { opacity: isInitializing ? 0.1 : 1 }]}
-        torch={torchOn ? 'on' : 'off'}
+        {...({ torch: torchOn ? 'on' : 'off' } as Record<string, unknown>)}
       />
 
       <View style={styles.overlay}>

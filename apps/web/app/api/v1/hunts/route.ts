@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { listPublicActiveHuntsByCursorOptimized } from "@/lib/db/queryOptimizer";
-import { ValidationError, AuthError } from "@/lib/api/errors";
+import { AuthError,ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
-import { getIP, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { listPublicActiveHuntsByCursorOptimized } from "@/lib/db/queryOptimizer";
 import { getFollowing } from "@/lib/follows";
-import type { StoredHunt } from "@/lib/types";
-import { verifySignedMessage } from "@/lib/signature";
 import { submitHuntForModeration } from "@/lib/moderation/dbStore";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
+import { verifySignedMessage } from "@/lib/signature";
+import type { StoredHunt } from "@/lib/types";
 
 /**
  * GET /api/v1/hunts
@@ -15,7 +15,7 @@ import { submitHuntForModeration } from "@/lib/moderation/dbStore";
  */
 export const GET = withErrorHandling(async (req: Request) => {
   const ip = getIP(req);
-  const { success, reset } = await rateLimit(ip, { limit: 100, windowMs: 60 * 1000 });
+  const { success, reset } = await rateLimit(ip, rateLimitPresets.read);
 
   if (!success) {
     return rateLimitResponse(reset);
@@ -71,7 +71,7 @@ export const GET = withErrorHandling(async (req: Request) => {
   let filteredData = data;
   let filteredTotal = total;
   if (following) {
-    const follows = getFollowing(following);
+    const follows = await getFollowing(following);
     const followSet = new Set(follows.map((w) => w.toLowerCase()));
     filteredData = data.filter((hunt) => {
       const creator = (hunt as StoredHunt & { creator?: string }).creator;
@@ -97,7 +97,7 @@ export const GET = withErrorHandling(async (req: Request) => {
  */
 export const POST = withErrorHandling(async (req: Request) => {
   const ip = getIP(req);
-  const { success, reset } = await rateLimit(ip, { limit: 20, windowMs: 60 * 1000 });
+  const { success, reset } = await rateLimit(ip, rateLimitPresets.write);
   if (!success) return rateLimitResponse(reset);
 
   const wallet = req.headers.get("x-wallet-address")?.trim();

@@ -301,12 +301,30 @@ export const huntArchiveBodySchema = z.object({
   actorAddress: nonEmptyStringSchema,
 });
 
+// ─── v1 / Hunts / [id] / Refund ──────────────────────────────────────────────
+
+export const huntRefundBodySchema = z.object({
+  /** Stellar address of the hunt creator reclaiming unclaimed rewards. */
+  creatorAddress: nonEmptyStringSchema,
+});
+
 // ─── v1 / Hunts / [id] / Delete ──────────────────────────────────────────────
 
 export const huntDeleteBodySchema = z.object({
   action: z.enum(["soft-delete", "restore", "permanent-delete"]),
   confirmed: z.boolean().optional(),
   actorAddress: nonEmptyStringSchema,
+});
+
+// ─── v1 / Hunts / [id] / Refund ──────────────────────────────────────────────
+
+/**
+ * POST /api/v1/hunts/[id]/refund
+ * Lets the hunt creator reclaim unclaimed rewards after the hunt ends and the
+ * grace period has elapsed.
+ */
+export const huntRefundBodySchema = z.object({
+  creatorAddress: nonEmptyStringSchema,
 });
 
 // ─── v1 / Hunts / Versions ──────────────────────────────────────────────────
@@ -367,6 +385,26 @@ export const presencePingBodySchema = z.object({
 export const presenceQuerySchema = z.object({
   walletAddress: nonEmptyStringSchema.optional(),
   staleMs: z.number().int().positive().optional().default(30000),
+})
+
+// ─── v1 / Hunts / [id] / Analytics / Clues ──────────────────────────────────
+
+export const clueAnalyticsQuerySchema = z.object({
+  /**
+   * Solve-rate percentage (0–100) below which a clue is flagged as an
+   * abandonment point. Defaults to 40 (i.e. fewer than 40 % of unique
+   * players solved the clue).
+   */
+  threshold: z
+    .string()
+    .optional()
+    .transform((v) => (v !== undefined ? Number(v) : 40))
+    .pipe(
+      z
+        .number()
+        .min(0, { message: "threshold must be ≥ 0" })
+        .max(100, { message: "threshold must be ≤ 100" }),
+    ),
 })
 
 // ─── v1 / Hunts / [id] / Progress ────────────────────────────────────────────

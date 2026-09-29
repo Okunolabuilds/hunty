@@ -55,4 +55,58 @@ eslintConfig.push({
   },
 });
 
+const reactNativeA11yProps = [
+  'accessible',
+  'accessibilityActions',
+  'accessibilityElementsHidden',
+  'accessibilityHint',
+  'accessibilityIgnoresInvertColors',
+  'accessibilityLabel',
+  'accessibilityLabelledBy',
+  'accessibilityLanguage',
+  'accessibilityLiveRegion',
+  'accessibilityRole',
+  'accessibilityState',
+  'accessibilityValue',
+  'accessibilityViewIsModal',
+  'onAccessibilityAction',
+  'onAccessibilityEscape',
+  'onAccessibilityTap',
+  'onMagicTap',
+  'importantForAccessibility'
+];
+
+const unknownA11yRule = {
+  meta: { type: "problem" },
+  create(context) {
+    return {
+      JSXAttribute(node) {
+        const name = node.name.name;
+        if (typeof name === 'string' && name.startsWith('accessib')) {
+          if (!reactNativeA11yProps.includes(name)) {
+            context.report({
+              node,
+              message: `Unknown accessibility prop '${name}'.`
+            });
+          }
+        }
+      }
+    };
+  }
+};
+
+eslintConfig.push({
+  files: ["apps/mobile/**/*.tsx", "apps/mobile/**/*.ts"],
+  plugins: {
+    "local-rules": {
+      rules: {
+        "no-unknown-a11y-prop": unknownA11yRule
+      }
+    }
+  },
+  rules: {
+    "local-rules/no-unknown-a11y-prop": "error"
+  }
+});
+
 export default eslintConfig;

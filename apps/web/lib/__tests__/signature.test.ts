@@ -1,4 +1,5 @@
-import { Keypair } from "@stellar/stellar-base";
+/** @vitest-environment node */
+import { Keypair } from "@stellar/stellar-sdk";
 import { generateChallenge, verifySignedMessage } from "../signature";
 
 describe("signature helper", () => {

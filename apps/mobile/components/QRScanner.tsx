@@ -19,7 +19,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getScannerStatusText, type ScannerCameraState, validateManualCode } from '@/lib/qrCodeScanner';
+import {
+  getScannerStatusText,
+  type ScannerCameraState,
+  validateManualCode,
+} from '@/lib/qrCodeScanner';
 
 interface QRScannerProps {
   isOpen: boolean;
@@ -73,16 +77,13 @@ const ManualCodeEntryForm: React.FC<ManualCodeEntryFormProps> = ({ onSubmit, onC
 
   return (
     <View style={styles.manualEntryForm}>
-      <Text
-        accessible={true}
-        accessibilityRole="header"
-        style={styles.manualEntryLabel}
-      >
+      <Text accessible={true} accessibilityRole="header" style={styles.manualEntryLabel}>
         Enter code manually
       </Text>
 
       <TextInput
         ref={inputRef}
+        testID="manual-code-input"
         accessible={true}
         accessibilityLabel="QR code value"
         accessibilityHint="Type the code shown on your QR code"
@@ -112,6 +113,7 @@ const ManualCodeEntryForm: React.FC<ManualCodeEntryFormProps> = ({ onSubmit, onC
 
       <View style={styles.manualEntryActions}>
         <TouchableOpacity
+          testID="manual-code-submit"
           accessible={true}
           accessibilityRole="button"
           accessibilityLabel="Submit code"
@@ -149,6 +151,7 @@ const renderManualEntryOrButton = (
   }
   return (
     <TouchableOpacity
+      testID="manual-entry-button"
       accessible={true}
       accessibilityRole="button"
       accessibilityLabel="Enter code manually"
@@ -213,7 +216,9 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     setIsInitializing(true);
     const timer = setTimeout(() => {
       setIsInitializing(false);
-      setScannerState((current) => (current === 'starting' || current === 'idle' ? 'ready' : current));
+      setScannerState((current) =>
+        current === 'starting' || current === 'idle' ? 'ready' : current,
+      );
     }, 300);
     return () => clearTimeout(timer);
   }, [isOpen]);
@@ -316,11 +321,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
   if (!permission.granted) {
     return (
-      <View
-        accessible={true}
-        accessibilityLabel="Camera access denied"
-        style={styles.container}
-      >
+      <View accessible={true} accessibilityLabel="Camera access denied" style={styles.container}>
         <View style={styles.centerContent}>
           <Text style={styles.permissionText}>Camera access denied</Text>
           <TouchableOpacity
@@ -377,7 +378,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
         barcodeScannerSettings={{
           barcodeTypes: ['qr'],
         }}
-        torch={torchOn ? 'on' : 'off'}
+        enableTorch={torchOn}
       />
 
       <View style={styles.overlay}>
@@ -436,14 +437,13 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           <ManualCodeEntryForm onSubmit={handleManualSubmit} onCancel={closeManualEntry} />
         ) : (
           <>
-            <Text
-              accessible={true}
-              accessibilityLiveRegion="polite"
-              style={styles.hintText}
-            >{hintText}</Text>
+            <Text accessible={true} accessibilityLiveRegion="polite" style={styles.hintText}>
+              {hintText}
+            </Text>
 
             {!scanned && (
               <TouchableOpacity
+                testID="manual-entry-button"
                 accessible={true}
                 accessibilityRole="button"
                 accessibilityLabel="Enter code manually"

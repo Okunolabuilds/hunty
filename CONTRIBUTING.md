@@ -252,6 +252,140 @@ Before opening a PR for contract work, confirm that you have:
 - Documented any deployed addresses or migration steps
 - Verified the frontend is updated to the new contract addresses when needed
 
+## API route auth model
+
+Every route under `apps/web/app/api/**/route.ts` ships with an explicit auth
+decision. Routes used to land with no auth because nothing forced the choice,
+so the rule is now: **authenticated is the default, public is opt-in and must be
+justified.** The [pull request template](.github/pull_request_template.md) has a
+checkbox for this — tick it or explain why it does not apply.
+
+### 1. Pick a wrapper
+
+Two wrappers live in `apps/web/lib/api/`:
+
+| Wrapper             | Use it when                                                                        | What you get                                                                                                          |
+| ------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `withValidation`    | **Default for every new route.** Validates `body`, `query`, and `params` with Zod. | Typed, validated input; 400 `VALIDATION_ERROR` with `details.fieldErrors` on bad input; error normalisation for free. |
+| `withErrorHandling` | Only when the route reads no body, query, or path params.                          | `{ error, code, details? }` JSON for thrown errors, plus an `x-request-id` header on every response.                  |
+
+`withValidation` already composes `withErrorHandling`, so never nest them by
+hand. Import them from `@/lib/api/withValidation` and `@/lib/api/withErrorHandling`.
+
+```ts
+import { NextResponse } from "next/server";
+import { withValidation } from "@/lib/api/withValidation";
+import { someBodySchema } from "@hunty/types/api-schemas";
+
+export const POST = withValidation({ body: someBodySchema }, async (_req, _context, { body }) => {
+  return NextResponse.json({ created: body.title });
+});
+```
+
+### 2. Add auth, unless the route is public
+
+**Neither wrapper authenticates the caller.** A route that mutates state and
+skips this step is world-writable. Match the guard to the route class:
+
+| Route class                                                       | Guard                                                                                                                                                    | On failure                                  |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Admin or moderation (`app/api/admin/**`, `app/api/moderation/**`) | `await assertAdminAuth(req)` from `@/lib/api/adminAuth`                                                                                                  | 401 with no token, 403 for a non-admin role |
+| Service-to-service caller (backend job, bot, cron)                | `Authorization: Bearer <secret>` compared against `process.env.ADMIN_API_SECRET` (or a route-specific secret) and `throw new AuthError(...)` on mismatch | 401                                         |
+| Creator- or owner-scoped write                                    | Look the record up, compare the caller against its owner, and `throw new ForbiddenError(...)` if they differ                                             | 403                                         |
+| Public read                                                       | Nothing — see the criteria below                                                                                                                         | —                                           |
+
+Throw the typed errors from `@/lib/api/errors` (`AuthError` 401,
+`ForbiddenError` 403, `ValidationError` 400, `NotFoundError` 404) rather than
+returning ad-hoc `NextResponse` bodies, so every route fails the same way.
+
+`assertAdminAuth` is `async` — **always `await` it.** An un-awaited guard
+produces an unhandled rejection and the handler carries on with an
+unauthenticated request.
+
+```ts
+import { NextResponse } from "next/server";
+import { withValidation } from "@/lib/api/withValidation";
+import { assertAdminAuth } from "@/lib/api/adminAuth";
+import { writeFeaturedId } from "@/lib/featuredHuntDb";
+import { adminFeaturedBodySchema } from "@hunty/types/api-schemas";
+
+export const POST = withValidation(
+  { body: adminFeaturedBodySchema },
+  async (req, _context, { body }) => {
+    await assertAdminAuth(req); // 401 / 403 before any side effect
+    await writeFeaturedId(body.huntId ?? null);
+    return NextResponse.json({ success: true });
+  }
+);
+```
+
+### When a route may be public
+
+A route may skip auth only if **all** of these hold:
+
+- It changes nothing an attacker would want to change. A read always qualifies.
+  A write qualifies only when the caller cannot hold a secret — a report the
+  browser posts on your behalf, or a one-click unsubscribe link. Every other
+  state change needs auth.
+- Everything it returns is already visible to an anonymous visitor on a public
+  page, or is non-sensitive by nature.
+- It cannot spend credits, send email, or move payments.
+- It carries a comment explaining why it is public, so a reviewer can check the
+  claim rather than guess.
+- It is rate limited with `rateLimit()` / `getIP()` from `@/lib/rate-limit` if it
+  is expensive or easy to abuse.
+
+The routes that already qualify: `/api/health` and `/api/v1/time` (liveness and
+the authoritative server clock), `/api/og/*` and `/api/embed/*` (social previews
+and public leaderboards), `/api/v1/email-digest/unsubscribe` (RFC 8058 one-click
+unsubscribe has to work from a mail client), and `/api/csp-report` (the browser
+posts it — no credential can exist).
+
+Anything else is authenticated. If you are not sure whether your route
+qualifies as public, treat it as authenticated and say so in the PR.
+
+## Required CI checks
+
+Every pull request targeting `main` must pass the **Quality Gate** status
+check before it can be merged. This check runs `lint` and `typecheck` via
+Turborepo across every workspace in the monorepo:
+
+| Workspace       | What runs                                      |
+| --------------- | ---------------------------------------------- |
+| `@hunty/web`    | ESLint + `tsc --noEmit`                        |
+| `mobile`        | ESLint + `tsc --noEmit`                        |
+| `@hunty/types`  | ESLint + `tsc --noEmit`                        |
+| `@hunty/ui`     | ESLint + `tsc --noEmit`                        |
+| `@hunty/config` | ESLint + `tsc --noEmit`                        |
+
+The individual workspace results feed into a single **Quality Gate** job
+(`quality-gate` in `.github/workflows/ci.yml`). If **any** workspace fails
+lint or typecheck, the gate fails and the PR is blocked.
+
+### Running locally before pushing
+
+```bash
+# Run lint + typecheck for all workspaces
+pnpm lint && pnpm typecheck
+
+# Or target a single workspace
+pnpm exec turbo run lint typecheck --filter=@hunty/web
+```
+
+### What to do if the gate fails
+
+1. Click the failing check in the PR to see the GitHub Actions log.
+2. Expand the workspace that failed to see the exact ESLint or TypeScript
+   errors.
+3. Fix the errors locally, commit, and push — the gate re-runs
+   automatically.
+
+### Verifying the gate works
+
+A helper script is provided at `scripts/ci/verify-quality-gate.sh`. It
+creates a throwaway branch with a deliberate type error so you can confirm
+the gate blocks the PR. See the script header for usage.
+
 ## Code Style Guidelines
 
 We're not super strict, but consistency helps everyone. Here's what we prefer:

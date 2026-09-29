@@ -28,4 +28,7 @@
 - [ ] I ran lint (`pnpm lint`).
 - [ ] I ran the relevant tests (`pnpm test`).
 - [ ] I added or updated tests for this change, or explained why tests are not needed.
+- [ ] If this PR adds or changes an API route, it follows the [API route auth model](CONTRIBUTING.md#api-route-auth-model): wrapped in `withValidation` (or `withErrorHandling` when there is nothing to validate) and authenticated unless it is intentionally public, in which case I explained why below.
 - [ ] I updated relevant documentation, or no documentation changes are needed.
+
+<!-- If you ticked the API route box, or the route is intentionally public, explain here: which wrapper, which auth guard, and why public is safe. -->

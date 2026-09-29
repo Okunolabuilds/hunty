@@ -12,6 +12,8 @@ export interface Season {
   status: SeasonStatus;
   /** Reward amounts for the top N players, indexed by place (1st, 2nd, ...). */
   rewards?: Reward[];
+  /** Verified admin identity that created the season, e.g. a Stellar address. */
+  createdBy?: string;
 }
 
 export interface SeasonLeaderboardEntry {
