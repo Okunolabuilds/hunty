@@ -4,7 +4,7 @@
 [![Next.js](https://img.shields.io/badge/next.js-15.3.4-black.svg)](https://nextjs.org/)
 [![Expo](https://img.shields.io/badge/expo-Managed%20App-green.svg)](https://expo.dev/)
 [![Stellar](https://img.shields.io/badge/stellar-soroban-blueviolet.svg)](https://soroban.stellar.org/)
-[![Coverage](https://codecov.io/gh/TheShnider/hunty/branch/main/graph/badge.svg)](https://codecov.io/gh/TheShnider/hunty)
+[![Coverage](https://codecov.io/gh/Samuel1-ona/hunty/branch/main/graph/badge.svg)](https://codecov.io/gh/Samuel1-ona/hunty)
 
 Hunty is a cross-platform scavenger-hunt platform and dApp that combines web, mobile, and on-chain rewards. Creators publish location-based hunts and players complete challenges to earn NFTs, tokens, and other reward assets via Stellar/Soroban.
 
@@ -24,6 +24,7 @@ Hunty is a cross-platform scavenger-hunt platform and dApp that combines web, mo
 - Attach image, audio, or video media to clue cards through the existing IPFS upload flow.
 - Promote active hunts into a 24-hour spotlight carousel from the creator dashboard.
 - Mint and claim NFT rewards and on-chain token payouts for completed hunts.
+- Track creator payouts from a consolidated dashboard: total escrowed, paid, refunded, and remaining per hunt, with on-chain transactions linked to the explorer and figures reconciled against on-chain escrow state.
 - Community and leaderboard features for social play and competition.
 
 ## Tech Stack
@@ -54,13 +55,13 @@ hunty/
 
 ### Workspaces
 
-| Package | Name | Description |
-|---------|------|-------------|
-| [`apps/web`](./apps/web) | `@hunty/web` | Web app — Next.js 15 App Router with creator dashboard, hunt play, NFT minting, leaderboards, and Stellar wallet integration. |
-| [`apps/mobile`](./apps/mobile) | `mobile` | Mobile app — Expo React Native with camera, location, notifications, maps, and WalletConnect support. |
-| [`packages/types`](./packages/types) | `@hunty/types` | Shared domain types, Zod validation schemas, and TypeScript type guards used by both apps. |
-| [`packages/ui`](./packages/ui) | `@hunty/ui` | Cross-platform component library exporting `web`, `native`, and shared `tokens` entry points. |
-| [`packages/config`](./packages/config) | `@hunty/config` | Centralized ESLint, TypeScript, and Tailwind CSS configurations consumed by all workspaces. |
+| Package                                | Name            | Description                                                                                                                   |
+| -------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| [`apps/web`](./apps/web)               | `@hunty/web`    | Web app — Next.js 15 App Router with creator dashboard, hunt play, NFT minting, leaderboards, and Stellar wallet integration. |
+| [`apps/mobile`](./apps/mobile)         | `mobile`        | Mobile app — Expo React Native with camera, location, notifications, maps, and WalletConnect support.                         |
+| [`packages/types`](./packages/types)   | `@hunty/types`  | Shared domain types, Zod validation schemas, and TypeScript type guards used by both apps.                                    |
+| [`packages/ui`](./packages/ui)         | `@hunty/ui`     | Cross-platform component library exporting `web`, `native`, and shared `tokens` entry points.                                 |
+| [`packages/config`](./packages/config) | `@hunty/config` | Centralized ESLint, TypeScript, and Tailwind CSS configurations consumed by all workspaces.                                   |
 
 ### Dependency direction
 
@@ -183,16 +184,16 @@ docker compose down
 
 All root scripts delegate to [Turborepo](https://turbo.build/) and run across every workspace:
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start all apps in development mode (no cache, persistent) |
-| `pnpm build` | Production build of all workspaces (respects `^build` dependency graph) |
-| `pnpm start` | Start built apps |
-| `pnpm lint` | Lint all workspaces |
-| `pnpm typecheck` | Run TypeScript type-checking across all workspaces |
-| `pnpm test` | Run unit tests across all workspaces |
-| `pnpm run test:coverage` | Run tests with coverage output |
-| `pnpm clean` | Remove build artifacts (`.next/`, `dist/`, etc.) |
+| Command                  | Description                                                             |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `pnpm dev`               | Start all apps in development mode (no cache, persistent)               |
+| `pnpm build`             | Production build of all workspaces (respects `^build` dependency graph) |
+| `pnpm start`             | Start built apps                                                        |
+| `pnpm lint`              | Lint all workspaces                                                     |
+| `pnpm typecheck`         | Run TypeScript type-checking across all workspaces                      |
+| `pnpm test`              | Run unit tests across all workspaces                                    |
+| `pnpm run test:coverage` | Run tests with coverage output                                          |
+| `pnpm clean`             | Remove build artifacts (`.next/`, `dist/`, etc.)                        |
 
 Run a command in a single workspace with `--filter`:
 
@@ -208,6 +209,7 @@ See [turbo.json](./turbo.json) for the full task pipeline configuration.
 - This project is managed with **pnpm workspaces** and **Turborepo**; the lockfile is `pnpm-lock.yaml`.
 - On-chain reward flows require wallet integrations and a local or testnet Stellar environment.
 - The `@hunty/types` and `@hunty/ui` packages use `workspace:*` protocol so local changes propagate immediately during development.
+- Duplicate import issues from merge conflicts have been resolved (e.g., CluesList.tsx in commit d65a7807).
 
 ## Roadmap
 
@@ -221,6 +223,8 @@ See [turbo.json](./turbo.json) for the full task pipeline configuration.
 ## Documentation
 
 - See [`docs/`](./docs/) for detailed guides on achievements, security, testing, and development setup.
+- See [`docs/network-switching.md`](./docs/network-switching.md) for the Stellar testnet/mainnet network-switching guide (selection, contract addresses, migration, and testing).
+
 ## Architecture
 
 ```mermaid

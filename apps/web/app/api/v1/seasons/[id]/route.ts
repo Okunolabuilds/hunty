@@ -1,16 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   getSeasonById,
   updateSeasonStatus,
   archiveSeason,
   getCurrentSeasonLeaderboard,
 } from "@/lib/seasonStore";
-import { rateLimit, getIP, rateLimitResponse } from "@/lib/rate-limit";
-import { NotFoundError, ValidationError } from "@/lib/api/errors";
+import { rateLimit, rateLimitPresets, getIP, rateLimitResponse } from "@/lib/rate-limit";
+import { AuthError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { withValidation } from "@/lib/api/withValidation";
 import type { SeasonStatus } from "@/lib/types";
 import { seasonArchiveBodySchema, seasonPatchBodySchema } from "@hunty/types/api-schemas";
+import { getBattlePassTiers, getPlayerProgress } from "@/lib/battlePassStore";
+import { verifyCallerAuth } from "@/lib/walletAuth";
 import { z } from "zod";
 
 type Context = { params: Promise<{ id: string }> };
@@ -18,12 +20,30 @@ type Context = { params: Promise<{ id: string }> };
 const paramsSchema = z.object({ id: z.string() });
 
 /**
+ * Enforce authentication for the mutating season routes.
+ *
+ * Seasons are admin-only, so the caller must present a valid admin session
+ * token or a signed wallet challenge. The returned actor is derived from the
+ * verified identity and is never read from the request body.
+ */
+async function requireSeasonAdmin(req: Request): Promise<string> {
+  const auth = await verifyCallerAuth(req as NextRequest);
+  if (!auth.authenticated) {
+    throw new AuthError(auth.error ?? "Authentication required");
+  }
+  if (!auth.authorized) {
+    throw new ForbiddenError(auth.error ?? "Admin privileges required");
+  }
+  return auth.actor ?? "unknown";
+}
+
+/**
  * GET /api/v1/seasons/[id]
  * Get a specific season by ID
  */
 export const GET = withErrorHandling(async (req: Request, context: Context) => {
   const ip = getIP(req);
-  const { success, reset } = await rateLimit(ip, { limit: 100, windowMs: 60 * 1000 });
+  const { success, reset } = await rateLimit(ip, rateLimitPresets.read);
   if (!success) return rateLimitResponse(reset);
 
   const { id } = await context.params;
@@ -41,7 +61,16 @@ export const GET = withErrorHandling(async (req: Request, context: Context) => {
   const now = Math.floor(Date.now() / 1000);
   const timeRemaining = season.status === "Active" ? Math.max(0, season.endTime - now) : 0;
 
-  return NextResponse.json({ season, leaderboard, timeRemaining });
+  const tiers = getBattlePassTiers(season);
+
+  const { searchParams } = new URL(req.url);
+  const address = searchParams.get("address");
+  let battlePass = null;
+  if (address) {
+    battlePass = getPlayerProgress(seasonId, address);
+  }
+
+  return NextResponse.json({ season, leaderboard, timeRemaining, tiers, battlePass });
 });
 
 /**
@@ -52,8 +81,11 @@ export const PATCH = withValidation(
   { body: seasonPatchBodySchema, params: paramsSchema },
   async (req, _context, { body, params }) => {
     const ip = getIP(req);
-    const { success, reset } = await rateLimit(ip, { limit: 10, windowMs: 60 * 1000 });
+    const { success, reset } = await rateLimit(ip, rateLimitPresets.sensitive);
     if (!success) return rateLimitResponse(reset);
+
+    // Privileged write: require a verified admin caller before touching state.
+    const actor = await requireSeasonAdmin(req);
 
     const seasonId = parseInt(params!.id, 10);
     if (isNaN(seasonId)) {
@@ -69,7 +101,9 @@ export const PATCH = withValidation(
       throw new NotFoundError("Season not found", { seasonId });
     }
 
-    return NextResponse.json({ season: updatedSeason });
+    const tiers = getBattlePassTiers(updatedSeason);
+
+    return NextResponse.json({ season: updatedSeason, tiers, actor });
   }
 );
 
@@ -81,8 +115,11 @@ export const POST = withValidation(
   { body: seasonArchiveBodySchema, params: paramsSchema },
   async (req, _context, { body, params }) => {
     const ip = getIP(req);
-    const { success, reset } = await rateLimit(ip, { limit: 5, windowMs: 60 * 1000 });
+    const { success, reset } = await rateLimit(ip, rateLimitPresets.sensitive);
     if (!success) return rateLimitResponse(reset);
+
+    // Privileged write: require a verified admin caller before archiving.
+    const actor = await requireSeasonAdmin(req);
 
     const seasonId = parseInt(params!.id, 10);
     if (isNaN(seasonId)) {
@@ -90,6 +127,6 @@ export const POST = withValidation(
     }
 
     const archived = archiveSeason(seasonId, body.finalLeaderboard);
-    return NextResponse.json({ archived }, { status: 200 });
+    return NextResponse.json({ archived, actor }, { status: 200 });
   }
 );

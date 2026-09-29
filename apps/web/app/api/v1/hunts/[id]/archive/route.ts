@@ -1,10 +1,12 @@
+import { huntArchiveBodySchema } from "@hunty/types/api-schemas";
 import { NextResponse } from "next/server";
-import { rateLimit, getIP, rateLimitResponse } from "@/lib/rate-limit";
-import { logger } from "@/lib/logger";
+import { z } from "zod";
+
 import { ValidationError } from "@/lib/api/errors";
 import { withValidation } from "@/lib/api/withValidation";
-import { huntArchiveBodySchema } from "@hunty/types/api-schemas";
-import { z } from "zod";
+import { recordHuntAudit } from "@/lib/db/huntAuditLog";
+import { logger } from "@/lib/logger";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 
 const paramsSchema = z.object({ id: z.string() })
 
@@ -16,7 +18,7 @@ export const POST = withValidation(
   { body: huntArchiveBodySchema, params: paramsSchema },
   async (req, _context, { body, params }) => {
     const ip = getIP(req);
-    const { success, reset } = await rateLimit(ip, { limit: 30, windowMs: 60 * 1000 });
+    const { success, reset } = await rateLimit(ip, rateLimitPresets.write);
     if (!success) return rateLimitResponse(reset);
 
     const huntId = parseInt(params!.id, 10);
@@ -24,14 +26,18 @@ export const POST = withValidation(
       throw new ValidationError("Invalid hunt ID", { id: params!.id });
     }
 
+    const actorAddress = body!.actorAddress;
+
     try {
       if (body.action === "archive") {
         const { hideHuntsFromPublic } = await import("@/lib/huntStore");
         hideHuntsFromPublic([huntId]);
+        await recordHuntAudit(huntId, "hunt archived", actorAddress, { action: "archive" });
         return NextResponse.json({ success: true, message: "Hunt archived successfully" });
       } else {
         const { unhideHuntsFromPublic } = await import("@/lib/huntStore");
         unhideHuntsFromPublic([huntId]);
+        await recordHuntAudit(huntId, "hunt unarchived", actorAddress, { action: "unarchive" });
         return NextResponse.json({ success: true, message: "Hunt unarchived successfully" });
       }
     } catch (error) {

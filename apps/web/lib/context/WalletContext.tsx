@@ -8,12 +8,12 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
 } from "react";
 
-import { truncateAddress } from "@/lib/walletAddress";
-import { useWalletMachine } from "@/lib/wallet/walletMachine";
-import { useWalletStore } from "@/lib/wallets/walletStore";
+import { useIsMounted } from "@/hooks/useIsMounted"
+import { truncateAddress } from "@/lib/walletAddress"
+import { useWalletMachine } from "@/lib/wallet/walletMachine"
+import { useWalletStore } from "@/lib/wallets/walletStore"
 import { usePlayerStore, useWalletStore as useLegacyWalletStore } from "@/store/useStore";
 import type { WalletProvider } from "@/lib/wallets/types";
 
@@ -55,7 +55,7 @@ export const WalletContext = createContext<WalletContextValue | null>(null);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const serverSafe = useRef(typeof window !== "undefined");
+  const mounted = useIsMounted();
 
   // ── State machine (single source of truth) ─────────────────────────
   const {
@@ -71,7 +71,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const { syncFromMachine: storeSync } = useWalletStore();
 
   useEffect(() => {
-    if (!serverSafe.current) return;
+    if (!mounted) return;
     storeSync({ status, publicKey, provider, error });
 
     // Also sync legacy stores for backwards compat
@@ -82,7 +82,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       useLegacyWalletStore.getState().clearWallet();
       usePlayerStore.getState().clearProgress();
     }
-  }, [status, publicKey, provider, error, storeSync]);
+  }, [mounted, status, publicKey, provider, error, storeSync])
 
   // ── Connect wrapper (matches existing interface) ───────────────────
   // machineConnect handles all errors internally by dispatching CONNECT_ERROR.

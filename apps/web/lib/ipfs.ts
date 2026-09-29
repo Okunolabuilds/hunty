@@ -7,6 +7,11 @@
  *  e.g. "mypinata.mypinata.cloud").
  */
 
+import {
+  exceedsUploadLimit,
+  IPFS_UPLOAD_TOO_LARGE_MESSAGE,
+} from "@/lib/upload-limits"
+
 const PINATA_GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY
 export const COVER_IMAGE_UPLOAD_ERROR_MESSAGE = "Failed to upload cover image. Please try again."
 
@@ -65,6 +70,12 @@ export function extractCID(src: string): string | null {
  * - The network request fails
  */
 export async function uploadToIPFS(file: File, walletAddress?: string): Promise<string> {
+  // Fail fast on the client: oversized files would otherwise be rejected by the
+  // serverless platform with an opaque error (or never reach our route at all).
+  if (exceedsUploadLimit(file.size)) {
+    throw new Error(IPFS_UPLOAD_TOO_LARGE_MESSAGE)
+  }
+
   const formData = new FormData()
   formData.append("file", file)
 

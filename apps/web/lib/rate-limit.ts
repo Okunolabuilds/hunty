@@ -74,6 +74,12 @@ function getStore(): Promise<Store> {
   return storePromise
 }
 
+export const rateLimitPresets = {
+  read: { limit: 100, windowMs: 60_000 },
+  write: { limit: 30, windowMs: 60_000 },
+  sensitive: { limit: 10, windowMs: 60_000 },
+} as const;
+
 export async function rateLimit(
   ip: string,
   config: RateLimitConfig = { limit: 60, windowMs: 60 * 1000 },
@@ -92,11 +98,11 @@ export async function rateLimit(
 }
 
 export function getIP(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for")
+  const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
-    return forwarded.split(",")[0].trim()
+    return forwarded.split(",")[0].trim();
   }
-  return "127.0.0.1"
+  return "127.0.0.1";
 }
 
 export function rateLimitResponse(reset: number) {
@@ -109,5 +115,5 @@ export function rateLimitResponse(reset: number) {
         "Retry-After": Math.ceil((reset - Date.now()) / 1000).toString(),
       },
     },
-  )
+  );
 }

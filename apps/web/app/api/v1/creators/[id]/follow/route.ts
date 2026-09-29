@@ -1,0 +1,82 @@
+/**
+ * Creator follow API
+ *
+ * POST   /api/v1/creators/:id/follow  { followerWallet }        — follow a creator
+ * DELETE /api/v1/creators/:id/follow  { followerWallet }        — unfollow a creator
+ * GET    /api/v1/creators/:id/follow?followerWallet=...         — follow status + counts
+ */
+
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { ValidationError } from "@/lib/api/errors";
+import { withErrorHandling } from "@/lib/api/withErrorHandling";
+import { withValidation } from "@/lib/api/withValidation";
+import {
+  followCreator,
+  getFollowersCount,
+  isFollowing,
+  unfollowCreator,
+} from "@/lib/follows";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
+
+type Context = { params: Promise<{ id: string }> };
+
+const paramsSchema = z.object({ id: z.string().min(1) });
+const bodySchema = z.object({ followerWallet: z.string().min(1) });
+
+function parseWallet(raw: string | null): string {
+  if (!raw) throw new ValidationError("followerWallet is required");
+  return raw;
+}
+
+export const POST = withValidation(
+  { body: bodySchema, params: paramsSchema },
+  async (_req: Request, _context: Context, { body, params }) => {
+    const ip = getIP(_req);
+    const { success, reset } = await rateLimit(ip, rateLimitPresets.write);
+    if (!success) return rateLimitResponse(reset);
+
+    const record = await followCreator(body.followerWallet, params.id);
+
+    return NextResponse.json({
+      following: true,
+      creatorWallet: params.id,
+      followerWallet: record.followerWallet,
+      followersCount: await getFollowersCount(params.id),
+    });
+  }
+);
+
+export const DELETE = withValidation(
+  { body: bodySchema, params: paramsSchema },
+  async (_req: Request, _context: Context, { body, params }) => {
+    const ip = getIP(_req);
+    const { success, reset } = await rateLimit(ip, rateLimitPresets.write);
+    if (!success) return rateLimitResponse(reset);
+
+    const removed = await unfollowCreator(body.followerWallet, params.id);
+
+    return NextResponse.json({
+      following: false,
+      creatorWallet: params.id,
+      followerWallet: body.followerWallet,
+      removed,
+      followersCount: await getFollowersCount(params.id),
+    });
+  }
+);
+
+export const GET = withErrorHandling<Context>(async (req: Request, { params }) => {
+  const { id: creatorWallet } = await params;
+  const followerWallet = parseWallet(
+    req.headers.get("x-follower-wallet") ?? new URL(req.url).searchParams.get("followerWallet")
+  );
+
+  return NextResponse.json({
+    creatorWallet,
+    followerWallet,
+    following: await isFollowing(followerWallet, creatorWallet),
+    followersCount: await getFollowersCount(creatorWallet),
+  });
+});

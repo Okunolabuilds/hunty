@@ -8,14 +8,17 @@
  */
 
 import webpush, { type PushSubscription as WebPushSubscription } from "web-push"
+
 import { logger } from "@/lib/logger"
-import type { PushEventType, PushPayload, WebPushSubscriptionRecord } from "./types"
-import { PUSH_EVENT_PREFERENCE_KEY } from "./types"
+
+import { getStoredNotificationPreferences } from "./notificationPreferencesStore"
 import {
-  getSubscriptionsForWallet,
   getSubscriptionsByWallets,
+  getSubscriptionsForWallet,
   removeSubscription,
 } from "./subscriptionStore"
+import type { PushEventType, PushPayload, WebPushSubscriptionRecord } from "./types"
+import { PUSH_EVENT_PREFERENCE_KEY } from "./types"
 
 // ─── VAPID Configuration ──────────────────────────────────────────────────────
 
@@ -178,16 +181,40 @@ async function sendToRecords(
   payload: PushPayload,
   eventType?: PushEventType
 ): Promise<void> {
-  // Filter by per-recipient preferences when we know the event type
-  const eligible = eventType
-    ? records.filter((r) => {
-        const prefs = r.preferences
-        if (!prefs) return true // no stored prefs → allow (default opt-in)
-        const key = PUSH_EVENT_PREFERENCE_KEY[eventType]
-        const flag = prefs[key]
-        return flag !== false // undefined → allow, false → skip
-      })
-    : records
+  // Use the wallet-scoped document as the source of truth. The subscription
+  // record still carries device-level Web Push flags, but using only that
+  // record would leave another browser subscribed with stale category values.
+  const recordsWithPreferences = await Promise.all(
+    records.map(async (record) => ({
+      record,
+      preferences: await getStoredNotificationPreferences(record.walletAddress),
+    }))
+  )
+
+  const eligible = recordsWithPreferences
+    .filter(({ record, preferences }) => {
+      const devicePreferences = record.preferences
+      // The global mute must win over every individual category switch. Check
+      // both sources so a preference changed on another device takes effect
+      // before the next push is sent.
+      if (preferences.enabled === false || devicePreferences?.enabled === false) return false
+      if (!eventType) return true
+
+      const category =
+        eventType === "hunt_start" || eventType === "hunt_cancelled"
+          ? "huntEvents"
+          : eventType === "first_completion"
+            ? "achievements"
+            : "social"
+      if (preferences[category] === false || devicePreferences?.[category] === false) {
+        return false
+      }
+
+      const key = PUSH_EVENT_PREFERENCE_KEY[eventType]
+      const flag = devicePreferences?.[key]
+      return flag !== false // undefined → allow, false → skip
+    })
+    .map(({ record }) => record)
 
   if (eligible.length === 0) return
 
@@ -200,10 +227,10 @@ async function sendToRecords(
           record.subscription as WebPushSubscription,
           jsonPayload
         )
-        .catch((err: { statusCode?: number }) => {
+        .catch(async (err: { statusCode?: number }) => {
           // 410 Gone / 404 Not Found → subscription is expired, remove it
           if (err?.statusCode === 410 || err?.statusCode === 404) {
-            removeSubscription(record.subscription.endpoint as string)
+            await removeSubscription(record.subscription.endpoint as string)
             logger.info(
               "[pushService] Removed stale subscription:",
               record.walletAddress

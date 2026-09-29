@@ -3,7 +3,6 @@ import { fileURLToPath } from "url";
 
 import { FlatCompat } from "@eslint/eslintrc";
 
-import baseConfig from "@hunty/config/eslint/base";
 import baseConfig from "@hunty/config/eslint/base.mjs";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -54,6 +53,60 @@ eslintConfig.push({
   rules: {
     "@typescript-eslint/no-explicit-any": "off",
   },
+});
+
+const reactNativeA11yProps = [
+  'accessible',
+  'accessibilityActions',
+  'accessibilityElementsHidden',
+  'accessibilityHint',
+  'accessibilityIgnoresInvertColors',
+  'accessibilityLabel',
+  'accessibilityLabelledBy',
+  'accessibilityLanguage',
+  'accessibilityLiveRegion',
+  'accessibilityRole',
+  'accessibilityState',
+  'accessibilityValue',
+  'accessibilityViewIsModal',
+  'onAccessibilityAction',
+  'onAccessibilityEscape',
+  'onAccessibilityTap',
+  'onMagicTap',
+  'importantForAccessibility'
+];
+
+const unknownA11yRule = {
+  meta: { type: "problem" },
+  create(context) {
+    return {
+      JSXAttribute(node) {
+        const name = node.name.name;
+        if (typeof name === 'string' && name.startsWith('accessib')) {
+          if (!reactNativeA11yProps.includes(name)) {
+            context.report({
+              node,
+              message: `Unknown accessibility prop '${name}'.`
+            });
+          }
+        }
+      }
+    };
+  }
+};
+
+eslintConfig.push({
+  files: ["apps/mobile/**/*.tsx", "apps/mobile/**/*.ts"],
+  plugins: {
+    "local-rules": {
+      rules: {
+        "no-unknown-a11y-prop": unknownA11yRule
+      }
+    }
+  },
+  rules: {
+    "local-rules/no-unknown-a11y-prop": "error"
+  }
 });
 
 export default eslintConfig;

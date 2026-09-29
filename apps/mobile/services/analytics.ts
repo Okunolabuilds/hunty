@@ -1,4 +1,4 @@
-import { type AnalyticsConfig,analyticsConfig } from '@config/analytics';
+import { type AnalyticsConfig, analyticsConfig } from '@config/analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
 
@@ -97,7 +97,6 @@ export async function initializeAnalytics(config: Partial<AnalyticsConfig> = {})
     dsn: merged.sentryDsn,
     environment: merged.environment,
     tracesSampleRate: merged.tracesSampleRate,
-    replaysSessionSampleRate: merged.replaysSessionSampleRate,
     attachScreenshot: merged.attachScreenshot,
     beforeSend: (event) => {
       // Privacy scrub: strip any potential PII from breadcrumbs
@@ -215,9 +214,7 @@ export function trackScreenView(screenName: string, previousScreen?: string): vo
   });
 
   // Also set the current route in Sentry scope for crash context
-  Sentry.configureScope((scope) => {
-    scope.setTag('current_screen', screenName);
-  });
+  Sentry.getCurrentScope()?.setTag('current_screen', screenName);
 }
 
 /**
@@ -247,14 +244,14 @@ export function trackAppStart(durationMs: number, coldStart = true): void {
     params: { duration_ms: Math.round(durationMs), cold_start: coldStart },
   });
 
-  // Also send as a Sentry transaction for performance monitoring
-  const transaction = Sentry.startTransaction({
+  // Also send as a Sentry span for performance monitoring
+  const span = Sentry.startInactiveSpan({
     name: 'app_start',
     op: 'app.lifecycle',
   });
-  transaction.setData('duration_ms', durationMs);
-  transaction.setData('cold_start', coldStart);
-  transaction.finish();
+  span.setAttribute('duration_ms', durationMs);
+  span.setAttribute('cold_start', coldStart);
+  span.end();
 }
 
 /**
@@ -266,12 +263,12 @@ export function trackScreenLoad(screenName: string, durationMs: number): void {
     params: { duration_ms: Math.round(durationMs) },
   });
 
-  const transaction = Sentry.startTransaction({
+  const span = Sentry.startInactiveSpan({
     name: `screen_load:${screenName}`,
     op: 'ui.load',
   });
-  transaction.setData('duration_ms', durationMs);
-  transaction.finish();
+  span.setAttribute('duration_ms', durationMs);
+  span.end();
 }
 
 /**
@@ -280,8 +277,8 @@ export function trackScreenLoad(screenName: string, durationMs: number): void {
 export function startPerformanceSpan(
   operation: string,
   description: string,
-): ReturnType<typeof Sentry.startTransaction> {
-  return Sentry.startTransaction({ name: description, op: operation });
+): ReturnType<typeof Sentry.startInactiveSpan> {
+  return Sentry.startInactiveSpan({ name: description, op: operation });
 }
 
 // ───────────────────────────────────────────────────────────
