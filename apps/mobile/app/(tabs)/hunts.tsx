@@ -3,7 +3,6 @@ import { useHaptics } from '@hooks/useHaptics';
 import { useTheme } from '@providers/ThemeProvider';
 import { getAllHunts } from '@store/huntStore';
 import { usePlayerStore, useWalletStore } from '@store/useStore';
-import type { StoredHunt } from '@hunty/types';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
