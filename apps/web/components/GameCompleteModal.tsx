@@ -37,6 +37,8 @@ interface GameCompleteModalProps {
   rewardReceipt?: RewardReceipt | null
   huntId?: number
   playerAddress?: string
+  showWalletPrompt?: boolean
+  onConnectWalletToClaim?: () => void
 }
 
 export function GameCompleteModal({
@@ -49,6 +51,8 @@ export function GameCompleteModal({
   rewardReceipt,
   huntId,
   playerAddress,
+  showWalletPrompt = false,
+  onConnectWalletToClaim,
 }: GameCompleteModalProps) {
   const prefersReducedMotion = useReducedMotion()
   const [newAchievements, setNewAchievements] = useState<string[]>([])

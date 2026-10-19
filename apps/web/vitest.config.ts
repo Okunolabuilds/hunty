@@ -77,6 +77,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "../../packages/config/$1"),
       },
       {
+        find: "next-auth/jwt",
+        replacement: path.resolve(__dirname, "./__mocks__/next-auth/jwt.ts"),
+      },
+      {
         find: "@hunty/types/api-schemas",
         replacement: path.resolve(__dirname, "../../packages/types/src/api-schemas.ts"),
       },
